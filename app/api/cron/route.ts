@@ -10,29 +10,31 @@ import {
 } from '@/lib/utils';
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 300; // This function can run for a maximum of 300 seconds or 5 minutes
+export const maxDuration = 300; // This function can run for a maximum of 300 seconds
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     connectToDB();
 
     const products = await Product.find({});
 
-    if (!products) throw new Error('No products found');
+    if (!products) throw new Error('No product fetched');
 
-    // 1. SCRAPE LATEST PRODUCT DETAILS & UPDATE DB
+    //  1. SCRAPE LATEST PRODUCT DETAILS & UPDATE DB
     const updatedProducts = await Promise.all(
       products.map(async (currentProduct) => {
         // Scrape product
         const scrapedProduct = await scrapeAmazonProduct(currentProduct.url);
 
-        if (!scrapedProduct) throw new Error('No products found');
+        if (!scrapedProduct) return;
 
         const updatedPriceHistory = [
           ...currentProduct.priceHistory,
-          { price: scrapedProduct.currentPrice },
+          {
+            price: scrapedProduct.currentPrice,
+          },
         ];
 
         const product = {
@@ -45,7 +47,9 @@ export async function GET() {
 
         // Update Products in DB
         const updatedProduct = await Product.findOneAndUpdate(
-          { url: product.url },
+          {
+            url: product.url,
+          },
           product
         );
 
